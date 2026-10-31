@@ -190,6 +190,7 @@ void Server::run(unsigned short port, unsigned maxPlayers, const std::string &na
 		#endif
 				auto addr = socket->getRemoteAddress();
 
+				{
 				std::lock_guard<std::mutex> connectionGuard(this->_connectionsMutex);
 			#ifndef _LOBBYNOLOG
 				logMutex.lock();
@@ -210,6 +211,7 @@ void Server::run(unsigned short port, unsigned maxPlayers, const std::string &na
 					this->_prepareConnectionHandlers(*this->_connections.back());
 				}
 				socket = std::make_unique<sf::TcpSocket>();
+				} // Release the connection lock before the cleanup pass.
 			} else
 				std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
