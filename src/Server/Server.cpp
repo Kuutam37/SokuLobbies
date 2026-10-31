@@ -16,6 +16,7 @@ extern std::mutex logMutex;
 #include "Server.hpp"
 #include "Utils.hpp"
 #include <algorithm>
+#include <cstdlib>
 
 #ifdef _DEBUG
 #define DEBUG_COLOR 0x404040
@@ -177,7 +178,10 @@ void Server::run(unsigned short port, unsigned maxPlayers, const std::string &na
 	#endif
 			return;
 		this->_listener.setBlocking(false);
-		this->_registerToMainServer();
+		// Explicit opt-out for a genuinely unlisted private lobby.
+		const char *noRegister = std::getenv("SOKULOBBIES_NO_REGISTER");
+		if (!noRegister || std::strcmp(noRegister, "1") != 0)
+			this->_registerToMainServer();
 		while (this->_opened) {
 		#ifdef SFML2
 			if (sf::Socket::Done == this->_listener.accept(*socket)) {
@@ -196,6 +200,15 @@ void Server::run(unsigned short port, unsigned maxPlayers, const std::string &na
 			#endif
 				logMutex.unlock();
 			#endif
+				// Bound all live connections, including unauthenticated clients.
+				// maxPlayers limits successful joins, not pending handshakes.
+				constexpr size_t MAX_TOTAL_CONNECTIONS = 16;
+				if (this->_connections.size() >= MAX_TOTAL_CONNECTIONS) {
+					socket->disconnect();
+					this->_connectionsMutex.unlock();
+					socket = std::make_unique<sf::TcpSocket>();
+					continue;
+				}
 				this->_connections.emplace_back(new Connection(socket, this->_password));
 				this->_prepareConnectionHandlers(*this->_connections.back());
 				this->_connectionsMutex.unlock();
