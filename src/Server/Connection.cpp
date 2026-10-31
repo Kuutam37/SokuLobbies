@@ -29,7 +29,7 @@ constexpr const sf::Socket::Status Error = sf::Socket::Status::Error;
 
 namespace {
 	constexpr auto RECEIVE_TIMEOUT = std::chrono::seconds(120);
-	constexpr auto HANDSHAKE_TIMEOUT = std::chrono::seconds(15);
+	// Lobby discovery sends PING before HELLO; do not time it out as a handshake.
 	constexpr auto SEND_RETRY_TIMEOUT = std::chrono::milliseconds(250);
 }
 
@@ -41,12 +41,9 @@ void Connection::_netLoop()
 	size_t recvSizeAdded = 0;
 
 	this->_timeoutClock.restart();
-	const auto handshakeDeadline = std::chrono::steady_clock::now() + HANDSHAKE_TIMEOUT;
 	this->_socket->setBlocking(false);
 	do {
 		recvSizeAdded = 0;
-		if (!this->_init && std::chrono::steady_clock::now() >= handshakeDeadline)
-			return this->kick("Handshake timed out");
 		auto status = this->_socket->receive(buffer + recvSize, sizeof(buffer) - recvSize, recvSizeAdded);
 		recvSize += recvSizeAdded;
 		if (recvSizeAdded)
