@@ -30,11 +30,10 @@ int wmain(int argc, const wchar_t *argv[])
 				std::cout << "Your password may only contain english characters and symbols." << std::endl;
 				return EXIT_FAILURE;
 			}
-		if (wcslen(argv[4]) > sizeof(Lobbies::PacketHello::password)) {
+		if (wcslen(argv[4]) >= sizeof(Lobbies::PacketHello::password)) {
 			std::cout << "Your password must be shorter than " << sizeof(Lobbies::PacketHello::password) << " characters." << std::endl;
 			return EXIT_FAILURE;
 		}
-		std::cout << "Password is '" << argv[4] << "'" << std::endl;
 	} else if (argc != 4) {
 		displayHelp(argv[0]);
 		return EXIT_FAILURE;
@@ -44,17 +43,17 @@ int wmain(int argc, const wchar_t *argv[])
 	Server server;
 	char pwd[sizeof(Lobbies::PacketHello::password) + 1];
 
-	if (argv[4]) {
+	if (argc == 5) {
 		memset(pwd, 0, sizeof(pwd));
-		for (auto ptr = pwd; *argv[4]; ptr++, argv[4]++)
-			*pwd = *argv[4];
+		for (size_t i = 0; i < wcslen(argv[4]); ++i)
+			pwd[i] = static_cast<char>(argv[4][i]);
 	}
 	serv = &server;
 	server.run(
 		std::stoul(argv[1]),
 		std::stoul(argv[2]),
 		convertEncoding<wchar_t, char, UTF16Decode, UTF8Encode>(argv[3]),
-		argv[4] ? pwd : nullptr
+		argc == 5 ? pwd : nullptr
 	);
 	return EXIT_SUCCESS;
 }
@@ -72,7 +71,7 @@ int main(int argc, const char *argv[])
 				std::cout << "Your password may only contain english characters and symbols." << std::endl;
 				return EXIT_FAILURE;
 			}
-		if (strlen(argv[4]) > sizeof(Lobbies::PacketHello::password)) {
+		if (strlen(argv[4]) >= sizeof(Lobbies::PacketHello::password)) {
 			std::cout << "Your password must be shorter than " << sizeof(Lobbies::PacketHello::password) << " characters." << std::endl;
 			return EXIT_FAILURE;
 		}
@@ -86,7 +85,7 @@ int main(int argc, const char *argv[])
 	Server server;
 
 	serv = &server;
-	server.run(std::stoul(argv[1]), std::stoul(argv[2]), argv[3], argv[4]);
+	server.run(std::stoul(argv[1]), std::stoul(argv[2]), argv[3], argc == 5 ? argv[4] : nullptr);
 	return EXIT_SUCCESS;
 }
 #endif
