@@ -2,6 +2,8 @@ name: Build Windows SokuLobbies server
 
 on:
   workflow_dispatch:
+  pull_request:
+    branches: [master]
 
 permissions:
   contents: read
@@ -38,6 +40,7 @@ jobs:
           New-Item -ItemType Directory -Force -Path dist | Out-Null
           Copy-Item build/server-only/Release/SokuLobbiesServer.exe dist/
           Copy-Item RunPrivateServer.bat dist/
+          Copy-Item RunPrivateServerSafe.ps1 dist/
           Copy-Item "$env:VCPKG_INSTALLATION_ROOT/installed/x64-windows/bin/*.dll" dist/
           Get-ChildItem dist | Select-Object Name,Length
 
