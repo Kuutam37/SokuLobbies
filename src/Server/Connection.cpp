@@ -8,6 +8,8 @@
 extern std::mutex logMutex;
 #endif
 #include <cstring>
+#include <algorithm>
+#include <chrono>
 #include "Connection.hpp"
 
 
@@ -27,6 +29,7 @@ constexpr const sf::Socket::Status Error = sf::Socket::Status::Error;
 
 namespace {
 	constexpr auto RECEIVE_TIMEOUT = std::chrono::seconds(120);
+	// Lobby discovery sends PING before HELLO; do not time it out as a handshake.
 	constexpr auto SEND_RETRY_TIMEOUT = std::chrono::milliseconds(250);
 }
 
@@ -526,7 +529,10 @@ bool Connection::_handlePacket(const Lobbies::PacketMessage &packet, size_t &siz
 	if (size < sizeof(packet))
 		return false;
 	size -= sizeof(packet);
-	this->onMessage(packet.channelId, packet.message);
+	const auto end = std::find(std::begin(packet.message), std::end(packet.message), '\0');
+	if (end == std::end(packet.message))
+		return this->kick("Protocol error: Unterminated message"), false;
+	this->onMessage(packet.channelId, std::string(packet.message, end));
 	return true;
 }
 
