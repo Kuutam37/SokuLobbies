@@ -1,7 +1,5 @@
 @echo off
-set /p port=Enter server port: 
-set /p slots=Enter server max slots: 
-set /p name=Enter lobby name: 
-set /p pwd=Enter lobby password: 
-SokuLobbiesServer.exe "%port%" "%slots%" "%name%" "%pwd%"
+setlocal
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0RunPrivateServerSafe.ps1"
+echo.
 pause
