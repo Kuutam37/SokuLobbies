@@ -190,7 +190,7 @@ void Server::run(unsigned short port, unsigned maxPlayers, const std::string &na
 		#endif
 				auto addr = socket->getRemoteAddress();
 
-				this->_connectionsMutex.lock();
+				std::lock_guard<std::mutex> connectionGuard(this->_connectionsMutex);
 			#ifndef _LOBBYNOLOG
 				logMutex.lock();
 			#ifdef SFML2
@@ -205,13 +205,10 @@ void Server::run(unsigned short port, unsigned maxPlayers, const std::string &na
 				constexpr size_t MAX_TOTAL_CONNECTIONS = 16;
 				if (this->_connections.size() >= MAX_TOTAL_CONNECTIONS) {
 					socket->disconnect();
-					this->_connectionsMutex.unlock();
-					socket = std::make_unique<sf::TcpSocket>();
-					continue;
+				} else {
+					this->_connections.emplace_back(new Connection(socket, this->_password));
+					this->_prepareConnectionHandlers(*this->_connections.back());
 				}
-				this->_connections.emplace_back(new Connection(socket, this->_password));
-				this->_prepareConnectionHandlers(*this->_connections.back());
-				this->_connectionsMutex.unlock();
 				socket = std::make_unique<sf::TcpSocket>();
 			} else
 				std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -341,11 +338,6 @@ void Server::_prepareConnectionHandlers(Connection &connection)
 		}
 	};
 	connection.onJoin = [this, &connection, id](const Lobbies::PacketHello &packet, std::string ip, std::string &name){
-		if (this->_infos.maxPlayers == this->_infos.currentPlayers) {
-			connection.kick("Server is full");
-			return false;
-		}
-
 		auto it = std::find_if(this->_banList.begin(), this->_banList.end(), [&connection, &ip](BanEntry entry){
 			return entry.ip == connection.getIp().toString();
 		});
@@ -373,6 +365,14 @@ void Server::_prepareConnectionHandlers(Connection &connection)
 		if (!foundVersion)
 			name = "?? " + name;*/
 
+		// Hold the membership lock for admission and player-count update.
+		// This prevents simultaneous handshakes from exceeding maxPlayers.
+		std::unique_lock<std::mutex> membershipLock(this->_connectionsMutex);
+		if (this->_infos.currentPlayers >= this->_infos.maxPlayers) {
+			membershipLock.unlock();
+			connection.kick("Server is full");
+			return false;
+		}
 		Lobbies::PacketOlleh res{this->_infos.name, name, id};
 		Lobbies::PacketPlayerJoin join{id, name, packet.custom};
 		Lobbies::PacketMessage msgPacket{0xFFFF00, 0, connection.getName() + " has joined the lobby."};
@@ -380,7 +380,6 @@ void Server::_prepareConnectionHandlers(Connection &connection)
 		std::cout << connection.getName() << " has joined the lobby." << std::endl;
 		connection.send(&res, sizeof(res));
 		connection.send(&msgPacket, sizeof(msgPacket));
-		this->_connectionsMutex.lock();
 		for (auto &c : this->_connections)
 			if (c->isInit()) {
 				Lobbies::PacketPlayerJoin join2{c->getId(), c->getName(), c->getPlayer()};
@@ -397,7 +396,7 @@ void Server::_prepareConnectionHandlers(Connection &connection)
 				}
 			}
 		this->_infos.currentPlayers++;
-		this->_connectionsMutex.unlock();
+		membershipLock.unlock();
 		return true;
 	};
 	connection.onMessage = [this, &connection, id](uint8_t channel, const std::string &msg){
