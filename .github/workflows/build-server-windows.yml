@@ -1,0 +1,49 @@
+name: Build Windows SokuLobbies server
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-2022
+    timeout-minutes: 45
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
+      - name: Install SFML
+        shell: pwsh
+        run: |
+          & "$env:VCPKG_INSTALLATION_ROOT/vcpkg.exe" install sfml:x64-windows
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Configure server-only build
+        shell: pwsh
+        run: |
+          cmake -S cmake/server-only -B build/server-only -G "Visual Studio 17 2022" -A x64 -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Build server
+        shell: pwsh
+        run: |
+          cmake --build build/server-only --config Release --target SokuLobbiesServer --parallel
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Package executable and SFML dependencies
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          Copy-Item build/server-only/Release/SokuLobbiesServer.exe dist/
+          Copy-Item RunPrivateServer.bat dist/
+          Copy-Item "$env:VCPKG_INSTALLATION_ROOT/installed/x64-windows/bin/*.dll" dist/
+          Get-ChildItem dist | Select-Object Name,Length
+
+      - name: Upload ZIP artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SokuLobbiesServer-Windows-x64
+          path: dist/
+          if-no-files-found: error
