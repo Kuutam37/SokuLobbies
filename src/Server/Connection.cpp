@@ -171,10 +171,12 @@ void Connection::send(const void *packet, size_t size)
 	}
 #ifndef _LOBBYNOLOG
 	logMutex.lock();
-	std::cout << "[>" << ip->toString() << ":" << this->_socket->getRemotePort();
-	if (this->_id)
-		std::cout << " player id " << this->_id;
-	std::cout << "] " << size << " bytes: " << reinterpret_cast<const Lobbies::Packet *>(packet)->toString() << std::endl;
+	if (reinterpret_cast<const Lobbies::Packet *>(packet)->opcode != Lobbies::OPCODE_POSITION) {
+		std::cout << "[>" << ip->toString() << ":" << this->_socket->getRemotePort();
+		if (this->_id)
+			std::cout << " player id " << this->_id;
+		std::cout << "] " << size << " bytes: " << reinterpret_cast<const Lobbies::Packet *>(packet)->toString() << std::endl;
+	}
 	// The above cases, which require the TCP send buffer to be full, are probably hard to happen under default configuration.
 	// But we still log it when it does happen.
 	if (totalSent != size) {
@@ -287,10 +289,12 @@ bool Connection::_handlePacket(const Lobbies::Packet &packet, size_t &size)
 	std::optional<sf::IpAddress> ip = this->_socket->getRemoteAddress();
 
 	logMutex.lock();
-	std::cout << "[<" << ip->toString() << ":" << this->_socket->getRemotePort();
-	if (this->_id)
-		std::cout << " player id " << this->_id;
-	std::cout << "] " << size << " bytes: " << packet.toString() << std::endl;
+	if (packet.opcode != Lobbies::OPCODE_POSITION) {
+		std::cout << "[<" << ip->toString() << ":" << this->_socket->getRemotePort();
+		if (this->_id)
+			std::cout << " player id " << this->_id;
+		std::cout << "] " << size << " bytes: " << packet.toString() << std::endl;
+	}
 	logMutex.unlock();
 #endif
 	switch (packet.opcode) {
