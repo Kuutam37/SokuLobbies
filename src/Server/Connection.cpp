@@ -171,7 +171,8 @@ void Connection::send(const void *packet, size_t size)
 	}
 #ifndef _LOBBYNOLOG
 	logMutex.lock();
-	if (reinterpret_cast<const Lobbies::Packet *>(packet)->opcode != Lobbies::OPCODE_POSITION) {
+	if (reinterpret_cast<const Lobbies::Packet *>(packet)->opcode != Lobbies::OPCODE_POSITION &&
+	    reinterpret_cast<const Lobbies::Packet *>(packet)->opcode != Lobbies::OPCODE_MOVE) {
 		std::cout << "[>" << ip->toString() << ":" << this->_socket->getRemotePort();
 		if (this->_id)
 			std::cout << " player id " << this->_id;
@@ -289,7 +290,7 @@ bool Connection::_handlePacket(const Lobbies::Packet &packet, size_t &size)
 	std::optional<sf::IpAddress> ip = this->_socket->getRemoteAddress();
 
 	logMutex.lock();
-	if (packet.opcode != Lobbies::OPCODE_POSITION) {
+	if (packet.opcode != Lobbies::OPCODE_POSITION && packet.opcode != Lobbies::OPCODE_MOVE) {
 		std::cout << "[<" << ip->toString() << ":" << this->_socket->getRemotePort();
 		if (this->_id)
 			std::cout << " player id " << this->_id;

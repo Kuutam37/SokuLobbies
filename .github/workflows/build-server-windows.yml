@@ -2,6 +2,8 @@ name: Build Windows SokuLobbies server
 
 on:
   workflow_dispatch:
+  push:
+    branches: [codex/quiet-position-logs]
   pull_request:
     branches: [master]
 
@@ -15,6 +17,12 @@ jobs:
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
+
+      - name: Show build revision
+        shell: pwsh
+        run: |
+          Write-Host "Branch: $env:GITHUB_REF_NAME"
+          Write-Host "Commit: $env:GITHUB_SHA"
 
       - name: Install SFML
         shell: pwsh
